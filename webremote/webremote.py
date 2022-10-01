@@ -18,6 +18,8 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import *
 from nav_msgs.msg import Path
 
+# for motor state 1 command
+from p2os_msgs.msg import MotorState
 
 
 class MinimalSubscriber(Node):
@@ -25,7 +27,9 @@ class MinimalSubscriber(Node):
     def __init__(self):
         super().__init__('pioneer_remote_websocket')
 
-        self.cmdvel_publisher = self.create_publisher(Twist, '/turtle1/cmd_vel', 10)
+        self.cmdvel_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
+
+        self.motor_state_pub= self.create_publisher(MotorState, '/cmd_motor_state', 10)
         self.motor_power=False
 
         self.subscription_odom = self.create_subscription( #for orientation
@@ -33,6 +37,23 @@ class MinimalSubscriber(Node):
             '/odometry/wheel',
             self.callback_odom_global, qos_profile_sensor_data
         )
+
+    #     timer_period = 0.5  # seconds
+    #     self.timer = self.create_timer(timer_period, self.timer_callback)
+    #     self.i = 0
+
+    # def timer_callback(self):
+    #     msg = String()
+    #     msg.data = 'Hello World: %d' % self.i
+    #     self.publisher_.publish(msg)
+    #     self.get_logger().info('Publishing: "%s"' % msg.data)
+    #     self.i += 1
+
+
+    def publish_motor_state(self, state):
+        ms=MotorState()
+        ms.state=state
+        self.motor_state_pub.publish(ms)
 
 
     def callback_odom_global(self, msg): 
@@ -85,6 +106,8 @@ def set_power():
         ros2_node.motor_power=False
 
     print('motor_power=', ros2_node.motor_power)
+
+    ros2_node.publish_motor_state(d)
  
     return 'thanks' 
 
@@ -98,9 +121,9 @@ def set_remote():
     return 'thanks' 
 
 def pub_direction(d):
-    if not ros2_node.motor_power:
-        print('motor not powered')
-        return
+    # if not ros2_node.motor_power:
+    #     print('motor not powered')
+    #     return
 
     twist = Twist()
     twist.linear.x = 0.0
@@ -123,7 +146,7 @@ def pub_direction(d):
         pass
     else:
         return
-    
+    # print('publishing')
     ros2_node.cmdvel_publisher.publish(twist)
 
 

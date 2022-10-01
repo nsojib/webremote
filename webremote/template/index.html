@@ -52,6 +52,28 @@
 
 
 <script type="text/javascript">
+
+function initialize() { 
+  console.log("initialized");
+
+  setInterval(send_motorstate, 1000*1);  
+  var i=0;
+  function send_motorstate() {
+      i=i+1;
+      // console.log("sending motor state",i);
+
+      var motor_state=document.getElementById("cpos").checked;
+      if(motor_state){ 
+          $.post("/power", {"power":1})
+       }else{ 
+        $.post("/power", {"power":0})
+       }
+
+  }
+
+}
+ 
+
   function btn_click(clicked_id)
   {
     var txt=document.getElementById(clicked_id).innerHTML;
@@ -76,11 +98,20 @@
        }
     }
 
+    function no_use(){
+      var stuff = JSON.stringify(latlon); 
+        $.post("/setpos", stuff, function( data ) {
+            console.log(stuff);  
+        }); 
+    }
+
+    
+
 </script>
 
 
 </head>
-<body>
+<body onload="initialize()">
   
 <div class="container-fluid mt-3">
   <h3>CARL@UNH</h3>
