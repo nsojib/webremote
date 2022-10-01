@@ -11,4 +11,5 @@ cd <webremote.py directory>
 python3 webremote.py
 ```
 
-![demo.png](demo.png)
+<img src="demo.png" width=50% height=50%>
+ 
