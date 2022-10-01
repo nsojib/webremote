@@ -17,13 +17,28 @@ from flask import Flask, render_template, request
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import *
 from nav_msgs.msg import Path
+import time
 
 # for motor state 1 command
 from p2os_msgs.msg import MotorState
 
+'''
+possible problem
+many remote can connect to this node.
+so, they are in different thread
+
+publish_motor are called from different webconnection
+
+
+'''
+
+class ProbFinder:
+    def __init__(self, id, t1) -> None:
+        self.id=id
+        self.t1=t1
 
 class MinimalSubscriber(Node):
-
+    
     def __init__(self):
         super().__init__('pioneer_remote_websocket')
 
@@ -31,6 +46,7 @@ class MinimalSubscriber(Node):
 
         self.motor_state_pub= self.create_publisher(MotorState, '/cmd_motor_state', 10)
         self.motor_power=False
+        
 
         self.subscription_odom = self.create_subscription( #for orientation
             Odometry,
@@ -38,22 +54,80 @@ class MinimalSubscriber(Node):
             self.callback_odom_global, qos_profile_sensor_data
         )
 
-    #     timer_period = 0.5  # seconds
-    #     self.timer = self.create_timer(timer_period, self.timer_callback)
-    #     self.i = 0
+        
+        self.t1=time.time()
+        self.prob=ProbFinder(0, self.t1)
 
-    # def timer_callback(self):
-    #     msg = String()
-    #     msg.data = 'Hello World: %d' % self.i
-    #     self.publisher_.publish(msg)
-    #     self.get_logger().info('Publishing: "%s"' % msg.data)
-    #     self.i += 1
+        print('origin time=', self.t1)
+        self.id=0
+
+        timer_period = 0.4  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.i = 0
+
+    def changeId(self):
+        self.prob.id=self.prob.id +1
+
+    def timer_callback(self): 
+        """
+        if no signal from remote controller then send 0 or 1 to the motor.
+        """
+        global last_time
+
+        #TODO: delete start
+        # ms=MotorState()
+        # ms.state=1
+        # self.motor_state_pub.publish(ms)
+        #TODO: delete end
+
+        self.i += 1
+        ct=time.time()
+        dt=ct - self.prob.t1
+        # print('current:', ct, ' dt=', dt, ' id=', self.id) 
+        # if self.prob.id==2:
+        #     print('prob.t1=', self.prob.t1, 'dt=', dt, " probid=", self.prob.id)
+
+        if self.prob.id==2 and dt>3:
+            print('dt=', dt, '  sending stop')
+            ms=MotorState()
+            ms.state=1
+            self.motor_state_pub.publish(ms)
+            self.publish_twist('stop')
 
 
     def publish_motor_state(self, state):
         ms=MotorState()
         ms.state=state
         self.motor_state_pub.publish(ms)
+        self.prob.t1=time.time()
+        self.prob.id=2
+
+
+    def publish_twist(self, d):
+        twist = Twist()
+        twist.linear.x = 0.0
+        twist.linear.y = 0.0
+        twist.linear.z = 0.0
+        twist.angular.x = 0.0
+        twist.angular.y = 0.0
+        twist.angular.z = 0.0
+        
+        if d=='up':
+            twist.linear.x = 0.5
+        elif d=='down':
+            twist.linear.x = -0.5
+        elif d=='left':
+            twist.angular.z = 0.5
+        elif d=='right':
+            twist.angular.z = -0.5
+
+        elif d=='stop':
+            #sends all 0
+            pass
+        else:
+            return
+        self.cmdvel_publisher.publish(twist)
+
 
 
     def callback_odom_global(self, msg): 
@@ -97,6 +171,7 @@ def home():
  
 @app.route('/power', methods = ['POST'])  
 def set_power(): 
+    global ros2_node
     d=request.form['power']
     print('power: ', d)
     d=int(d)
@@ -107,53 +182,26 @@ def set_power():
 
     print('motor_power=', ros2_node.motor_power)
 
-    ros2_node.publish_motor_state(d)
+    ros2_node.publish_motor_state(d) 
  
     return 'thanks' 
 
 @app.route('/remote', methods = ['POST'])  
 def set_remote(): 
+    global ros2_node
     direction=request.form['direction']
     # print('direction: ', direction)
 
-    pub_direction(direction) 
+    ros2_node.publish_twist(direction)  
  
     return 'thanks' 
 
-def pub_direction(d):
-    # if not ros2_node.motor_power:
-    #     print('motor not powered')
-    #     return
-
-    twist = Twist()
-    twist.linear.x = 0.0
-    twist.linear.y = 0.0
-    twist.linear.z = 0.0
-    twist.angular.x = 0.0
-    twist.angular.y = 0.0
-    twist.angular.z = 0.0
-    
-    if d=='up':
-        twist.linear.x = 0.5
-    elif d=='down':
-        twist.linear.x = -0.5
-    elif d=='left':
-        twist.angular.z = 0.5
-    elif d=='right':
-        twist.angular.z = -0.5
-
-    elif d=='stop':
-        pass
-    else:
-        return
-    # print('publishing')
-    ros2_node.cmdvel_publisher.publish(twist)
-
-
+ 
 
 
 rclpy.init(args=None) 
 ros2_node = MinimalSubscriber()
+ros2_node.changeId()
 
 prev_sigint_handler = signal.signal(signal.SIGINT, sigint_handler)
 def main(args=None):
