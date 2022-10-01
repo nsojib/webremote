@@ -165,7 +165,7 @@ def set_power():
 
     ros2_node.publish_motor_state(d) 
  
-    return 'thanks' 
+    return 'power set' 
 
 @app.route('/remote', methods = ['POST'])  
 def set_remote(): 
@@ -177,7 +177,7 @@ def set_remote():
 
     ros2_node.publish_twist(direction, speed)  
  
-    return 'thanks' 
+    return '/cmd_vel set' 
 
  
 
@@ -199,7 +199,7 @@ if __name__ == '__main__':
     main()
     
 """
-culprt found
+Lesson learned
 https://stackoverflow.com/questions/25504149/why-does-running-the-flask-dev-server-run-itself-twice
 
 The Werkzeug reloader spawns a child process so that it can restart that process each time 

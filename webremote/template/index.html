@@ -73,9 +73,11 @@ function initialize() {
 
       motor_state=document.getElementById("cpos").checked;
       if(motor_state){ 
-          $.post("/power", {"power":1})
+          // $.post("/power", {"power":1})
+          send_data("/power", {"power":1});
        }else{ 
-        $.post("/power", {"power":0})
+        //$.post("/power", {"power":0})
+          send_data("/power", {"power":0});
        }
 
   }
@@ -98,22 +100,31 @@ function initialize() {
     // $.post("/remote", {"direction":clicked_id, "speed":speed})
     
     var cmd={"direction":clicked_id, "speed":speed};
-    $.post("/remote", cmd, function( data ) {
-            
-    }); 
+    send_data("/remote", cmd);
+    // $.post("/remote", cmd, function( data ) {
+    //         set_status(data);
+    // }); 
 
+  }
+
+  function send_data(endpoint, cmd){
+    set_status(endpoint+" "+cmd); 
+    $.post(endpoint, cmd, function( data ) {
+            set_status(data);
+    });  
   }
 
   function check_checkbox() {
         var checkBox = document.getElementById("cpos");  
        if(checkBox.checked){
-          document.getElementById("status").innerHTML="status: ON";
           $.post("/power", {"power":1})
        }else{
-        document.getElementById("status").innerHTML="status: OFF";
         $.post("/power", {"power":0})
         document.getElementById("button_status").innerHTML="Current direction: "+"stop";
        }
+    }
+    function set_status(msg){
+      document.getElementById("status").innerHTML="status: "+msg;
     }
 
     function no_use(){
@@ -138,8 +149,8 @@ function initialize() {
   <label class = "checkbox-inline">
     <input type = "checkbox" value = "" id="cpos" onclick="check_checkbox()">motor power </label>
 
-<p id="status">status: none</p>
- <p id="button_status">Current direction: STOP</p>
+<p id="status">server status: 0</p>
+<p id="button_status">Current direction: STOP</p>
 
 
  <div class="=row">
