@@ -32,12 +32,8 @@ publish_motor are called from different webconnection
 
 '''
 
-class ProbFinder:
-    def __init__(self, id, t1) -> None:
-        self.id=id
-        self.t1=t1
 
-class MinimalSubscriber(Node):
+class PioneerPub(Node):
     
     def __init__(self):
         super().__init__('pioneer_remote_websocket')
@@ -47,48 +43,24 @@ class MinimalSubscriber(Node):
         self.motor_state_pub= self.create_publisher(MotorState, '/cmd_motor_state', 10)
         self.motor_power=False
         
-
-        self.subscription_odom = self.create_subscription( #for orientation
-            Odometry,
-            '/odometry/wheel',
-            self.callback_odom_global, qos_profile_sensor_data
-        )
-
-        
         self.t1=time.time()
-        self.prob=ProbFinder(0, self.t1)
-
         print('origin time=', self.t1)
         self.id=0
 
-        timer_period = 0.4  # seconds
+        timer_period = 0.5  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
-
-    def changeId(self):
-        self.prob.id=self.prob.id +1
 
     def timer_callback(self): 
         """
         if no signal from remote controller then send 0 or 1 to the motor.
         """
-        global last_time
-
-        #TODO: delete start
-        # ms=MotorState()
-        # ms.state=1
-        # self.motor_state_pub.publish(ms)
-        #TODO: delete end
 
         self.i += 1
         ct=time.time()
-        dt=ct - self.prob.t1
-        # print('current:', ct, ' dt=', dt, ' id=', self.id) 
-        # if self.prob.id==2:
-        #     print('prob.t1=', self.prob.t1, 'dt=', dt, " probid=", self.prob.id)
-
-        if self.prob.id==2 and dt>3:
-            print('dt=', dt, '  sending stop')
+        dt=ct - self.t1
+        if dt>3:
+            print('sending stop')
             ms=MotorState()
             ms.state=1
             self.motor_state_pub.publish(ms)
@@ -99,11 +71,17 @@ class MinimalSubscriber(Node):
         ms=MotorState()
         ms.state=state
         self.motor_state_pub.publish(ms)
-        self.prob.t1=time.time()
-        self.prob.id=2
+        self.t1=time.time()
 
 
-    def publish_twist(self, d):
+    def publish_twist(self, d, speed=0.5):
+        if speed<0:
+            speed=0
+        elif speed>10:
+            speed=10
+
+
+
         twist = Twist()
         twist.linear.x = 0.0
         twist.linear.y = 0.0
@@ -113,13 +91,13 @@ class MinimalSubscriber(Node):
         twist.angular.z = 0.0
         
         if d=='up':
-            twist.linear.x = 0.5
+            twist.linear.x = speed
         elif d=='down':
-            twist.linear.x = -0.5
+            twist.linear.x = - speed
         elif d=='left':
-            twist.angular.z = 0.5
+            twist.angular.z =  speed
         elif d=='right':
-            twist.angular.z = -0.5
+            twist.angular.z = - speed
 
         elif d=='stop':
             #sends all 0
@@ -158,7 +136,10 @@ def sigint_handler(signal, frame):
     #     prev_sigint_handler(signal)
 
 
- 
+
+
+
+
 app = Flask(__name__, template_folder='template')
 import logging
 log = logging.getLogger('werkzeug')
@@ -190,27 +171,40 @@ def set_power():
 def set_remote(): 
     global ros2_node
     direction=request.form['direction']
-    # print('direction: ', direction)
+    speed=request.form['speed']
+    speed=float(speed)
+    # print('direction: ', direction, ' speed=', speed)
 
-    ros2_node.publish_twist(direction)  
+    ros2_node.publish_twist(direction, speed)  
  
     return 'thanks' 
 
  
 
 
-rclpy.init(args=None) 
-ros2_node = MinimalSubscriber()
-ros2_node.changeId()
+
+rclpy.init(args=None)  
+ros2_node=None
+ros2_node = PioneerPub()
 
 prev_sigint_handler = signal.signal(signal.SIGINT, sigint_handler)
-def main(args=None):
+def main():
     global app
-    global ros2_node 
-
+    global ros2_node   
     threading.Thread(target=ros2_thread, args=[ros2_node]).start()
    
-    app.run(debug = True, host='0.0.0.0')
+    app.run(debug = True, host='0.0.0.0', use_reloader=False)
 
-if __name__ == '__main__':
+if __name__ == '__main__': 
     main()
+    
+"""
+culprt found
+https://stackoverflow.com/questions/25504149/why-does-running-the-flask-dev-server-run-itself-twice
+
+The Werkzeug reloader spawns a child process so that it can restart that process each time 
+your code changes. Werkzeug is the library that supplies Flask with the development 
+server when you call app.run().
+
+
+"""
