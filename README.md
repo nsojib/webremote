@@ -1,5 +1,6 @@
-# webremote for pioneer
+# webremote to control mobile robots on ROS2
 
+A flask app that serve a remote controller interface that can be accessed from any device and publish twist msg on /cmd_vel
 
 * depends on p2os_msgs
 
