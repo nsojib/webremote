@@ -13,17 +13,11 @@ import threading
 from flask import Flask
 from flask import Flask, redirect
 from flask import Flask, render_template, request
-
-from nav_msgs.msg import Odometry
+ 
 from geometry_msgs.msg import *
 from nav_msgs.msg import Path
 import time
 
-try:
-    # for motor state 1 command
-    from p2os_msgs.msg import MotorState
-except :
-    print('cant import p2os')
 
 '''
 possible problem
@@ -41,9 +35,6 @@ class PioneerPub(Node):
 
         self.cmdvel_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
 
-        self.motor_state_pub= self.create_publisher(MotorState, '/cmd_motor_state', 10)
-        self.motor_power=False
-        
         self.t1=time.time()
         print('origin time=', self.t1)
         self.id=0
@@ -56,32 +47,15 @@ class PioneerPub(Node):
         """
         if no signal from remote controller then send 0 or 1 to the motor.
         """
-
         self.i += 1
         ct=time.time()
         dt=ct - self.t1
-        if dt>3:
-            print('sending stop')
-            ms=MotorState()
-            ms.state=1
-            self.motor_state_pub.publish(ms)
-            self.publish_twist('stop')
-
-
-    def publish_motor_state(self, state):
-        ms=MotorState()
-        ms.state=state
-        self.motor_state_pub.publish(ms)
-        self.t1=time.time()
-
-
+ 
     def publish_twist(self, d, speed=0.5):
         if speed<0:
             speed=0
         elif speed>10:
-            speed=10
-
-
+            speed=10 
 
         twist = Twist()
         twist.linear.x = 0.0
@@ -107,16 +81,6 @@ class PioneerPub(Node):
             return
         self.cmdvel_publisher.publish(twist)
 
-
-
-    def callback_odom_global(self, msg): 
-        global robot_z
-        """
-        for robot orientation. 
-        """
-        print('callback_odom_global')
-        
-
 def ros2_thread(node):
     print('entering ros2 thread')
     rclpy.spin(node)
@@ -137,9 +101,7 @@ def sigint_handler(signal, frame):
     #     prev_sigint_handler(signal)
 
 
-
-
-
+ 
 
 app = Flask(__name__, template_folder='template')
 import logging
@@ -148,26 +110,9 @@ log.disabled = True
 
 @app.route('/')  
 def home():  
-    return render_template('index.html') 
+    return render_template('index0.html') 
 
  
-@app.route('/power', methods = ['POST'])  
-def set_power(): 
-    global ros2_node
-    d=request.form['power']
-    print('power: ', d)
-    d=int(d)
-    if d==1:
-        ros2_node.motor_power=True
-    else:
-        ros2_node.motor_power=False
-
-    print('motor_power=', ros2_node.motor_power)
-
-    ros2_node.publish_motor_state(d) 
- 
-    return 'power set' 
-
 @app.route('/remote', methods = ['POST'])  
 def set_remote(): 
     global ros2_node
@@ -180,9 +125,7 @@ def set_remote():
  
     return '/cmd_vel set' 
 
- 
-
-
+  
 
 rclpy.init(args=None)  
 ros2_node=None
